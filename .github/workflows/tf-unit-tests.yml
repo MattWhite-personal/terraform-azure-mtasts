@@ -2,8 +2,8 @@ name: 'Terraform Unit Tests'
 
 on:
   push:
-  pull_request:
-    types: [opened, edited, reopened, synchronize]
+  #pull_request:
+  #  types: [opened, edited, reopened, synchronize]
 
 permissions:
   security-events: write # Needed to upload-sarif
@@ -46,7 +46,7 @@ jobs:
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git add .
         git commit -m "chore: auto-format Terraform code via GitHub Actions"
-        git push
+        git push origin HEAD:${{ github.head_ref }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
