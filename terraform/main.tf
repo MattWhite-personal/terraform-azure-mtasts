@@ -101,8 +101,8 @@ resource "azurerm_cdn_endpoint_custom_domain" "mtastscustomdomain" {
   host_name       = "${azurerm_dns_cname_record.mta-sts-cname.name}.${data.azurerm_dns_zone.dns-zone.name}"
   cdn_managed_https {
     certificate_type = "Dedicated"
-    protocol_type = "ServerNameIndication"
-    tls_version = "TLS12"
+    protocol_type    = "ServerNameIndication"
+    tls_version      = "TLS12"
   }
 }
 

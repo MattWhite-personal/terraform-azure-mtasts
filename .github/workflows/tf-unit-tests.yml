@@ -1,0 +1,129 @@
+name: 'Terraform Unit Tests'
+
+on:
+  push:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  security-events: write # Needed to upload-sarif
+  contents: write # Needed to clone repo
+  actions: read # Potentially needed for private repositories (see https://github.com/github/codeql-action/issues/2117)
+
+jobs:
+  terraform-unit-tests-push:
+    if: github.event_name == 'push'
+    name: 'Terraform Unit Tests (Push)'
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+
+    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+    - name: Terraform Init
+      run: terraform init -backend=false
+
+    # Validate terraform files
+    - name: Terraform Validate
+      run: terraform validate
+
+    # Checks that all Terraform configuration files adhere to a canonical format
+    - name: Terraform Format
+      id: fmt_check
+      run: terraform fmt -check -recursive
+    
+    # Perform a security scan of the terraform code using checkov
+    - name: Run Checkov action
+      id: checkov
+      uses: bridgecrewio/checkov-action@master
+      with: 
+        framework: terraform
+        # This will add both a CLI output to the console and create a results.sarif file
+        output_format: cli,sarif
+        output_file_path: console,results.sarif
+
+     # Upload results to GitHub Advanced Security
+    - name: Upload SARIF file
+      if: steps.checkov.outcome == 'success'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: results.sarif
+        category: checkov
+        
+  terraform-unit-tests-pr:
+    if: github.event_name == 'pull_request'
+    name: 'Terraform Unit Tests (PR)'
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+
+    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+    - name: Terraform Init
+      run: terraform init -backend=false
+
+    # Validate terraform files
+    - name: Terraform Validate
+      run: terraform validate
+
+    # Checks that all Terraform configuration files adhere to a canonical format
+    - name: Terraform Format
+      id: fmt_check
+      run: terraform fmt -check -recursive
+
+    # Attempts to fix any formatting errors if they exist
+    - name: Auto Format & Commit Changes
+      if: failure() && steps.fmt_check.outcome == 'failure'
+      run: |
+        terraform fmt -recursive
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add .
+        git commit -m "chore: auto-format Terraform code via GitHub Actions" || exit 0
+        git pull --rebase origin ${{ github.head_ref }}
+        git push origin HEAD:${{ github.head_ref }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # Checks if there are formatting errors before continuing
+    - name: Terraform Format Pass Check
+      if: steps.fmt_check.outcome == 'success'
+      run: echo "Terraform formatting is correct. Proceeding to security scan..."
+
+    # Ensures changes after code formatting fail the action so a PR cannot be merged without human verification
+    - name: Fail if Auto Format Ran
+      if: failure() && steps.fmt_check.outcome == 'failure'
+      run: |
+        echo "Auto-formatting was required. Please review and re-run the workflow."
+        exit 1
+    
+    # Perform a security scan of the terraform code using checkov
+    - name: Run Checkov action
+      if: steps.fmt_check.outcome == 'success'
+      id: checkov
+      uses: bridgecrewio/checkov-action@master
+      with: 
+        framework: terraform
+        # This will add both a CLI output to the console and create a results.sarif file
+        output_format: cli,sarif
+        output_file_path: console,results.sarif
+        
+     # Upload results to GitHub Advanced Security
+    - name: Upload SARIF file
+      if: steps.fmt_check.outcome == 'success'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: results.sarif
+        category: checkov
