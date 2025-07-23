@@ -2,6 +2,8 @@ name: 'Terraform Unit Tests'
 
 on:
   push:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
 
 permissions:
   security-events: write # Needed to upload-sarif
