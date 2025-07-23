@@ -34,6 +34,7 @@ jobs:
 
     # Checks that all Terraform configuration files adhere to a canonical format
     - name: Terraform Format
+      id: fmt_check
       run: terraform fmt -check -recursive
 
     # Attempts to fix any formatting errors if they exist
