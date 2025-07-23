@@ -1,5 +1,7 @@
 # MTA-STS/TLS-RPT Azure code
 
+## Repo to be updated and overhauled with new release
+
 This repo is inspired by the UK NCSC [terraform-aws-mtasts](https://github.com/ukncsc/terraform-aws-mtasts) module to deploy [MTS-STS](https://tools.ietf.org/html/rfc8461) and [TLS-RPT](https://tools.ietf.org/html/rfc8460) policy for a domin in Microsoft Azure using [Terraform](https://www.terraform.io/).
 
 The module requires the following core configuration to be in place already:
