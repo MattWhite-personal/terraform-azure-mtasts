@@ -33,9 +33,28 @@ jobs:
     # Checks that all Terraform configuration files adhere to a canonical format
     - name: Terraform Format
       run: terraform fmt -check -recursive
+
+    # Attempts to fix any formatting errors if they exist
+    - name: Auto Format & Commit Changes
+      if: failure() && steps.fmt_check.outcome == 'failure'
+      run: |
+        terraform fmt -recursive
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add .
+        git commit -m "chore: auto-format Terraform code via GitHub Actions"
+        git push
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # Checks if there are formatting errors before continuing
+    - name: Terraform Format Pass Check
+      if: steps.fmt_check.outcome == 'success'
+      run: echo "Terraform formatting is correct. Proceeding to security scan..."
     
     # Perform a security scan of the terraform code using checkov
     - name: Run Checkov action
+      if: steps.fmt_check.outcome == 'success'
       id: checkov
       uses: bridgecrewio/checkov-action@master
       with: 
@@ -47,7 +66,7 @@ jobs:
 
      # Upload results to GitHub Advanced Security
     - name: Upload SARIF file
-      if: success() || failure()
+      if: steps.fmt_check.outcome == 'success'
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: results.sarif
